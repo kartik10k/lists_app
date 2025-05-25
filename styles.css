@@ -1,7 +1,8 @@
 .page-content {
-    padding: 24px;
+    padding: 24px 40px;
     position: relative;
     min-height: calc(100vh - 128px);
+    background-color: #fff;
 }
 
 #list-content {
@@ -11,7 +12,7 @@
 .list-item {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
+    padding: 16px 24px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 
@@ -23,6 +24,7 @@
 .list-item-content {
     flex-grow: 1;
     margin-right: 16px;
+    font-size: 16px;
 }
 
 #add-item-button {
@@ -30,6 +32,22 @@
     bottom: 24px;
     right: 24px;
     z-index: 100;
+    background-color: #1976D2 !important;
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 50% !important;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23) !important;
+    transition: all 0.3s ease !important;
+}
+
+#add-item-button:hover {
+    transform: scale(1.1) !important;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.25), 0 5px 10px rgba(0, 0, 0, 0.22) !important;
+}
+
+#add-item-button i {
+    font-size: 24px !important;
+    color: white !important;
 }
 
 #voice-button {
@@ -37,10 +55,79 @@
     bottom: 24px;
     right: 96px;
     z-index: 100;
+    background-color: #1976D2 !important;
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 50% !important;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23) !important;
+    transition: all 0.3s ease !important;
+}
+
+#voice-button:hover {
+    transform: scale(1.1) !important;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.25), 0 5px 10px rgba(0, 0, 0, 0.22) !important;
+}
+
+#voice-button i {
+    font-size: 24px !important;
+    color: white !important;
+}
+
+/* Animation for voice button when listening */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+    }
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.25), 0 5px 10px rgba(0, 0, 0, 0.22);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+    }
+}
+
+#voice-button.listening {
+    background-color: #D32F2F !important;
+    animation: pulse 1.5s infinite;
+}
+
+/* Add a tooltip for the buttons */
+#add-item-button::after,
+#voice-button::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 12px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    border-radius: 4px;
+    font-size: 14px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    margin-bottom: 8px;
+}
+
+#add-item-button:hover::after,
+#voice-button:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
 
 .mdl-dialog {
     width: 400px;
+}
+
+.mdl-dialog__title {
+    color: #1976D2;
+    font-size: 20px;
+    padding: 24px 24px 0;
 }
 
 .mdl-dialog__content {
@@ -49,6 +136,18 @@
 
 .mdl-textfield {
     width: 100%;
+}
+
+.mdl-textfield__input {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.mdl-textfield__input:focus {
+    border-bottom: 2px solid #5C6BC0;
+}
+
+.mdl-button--colored {
+    color: #1976D2 !important;
 }
 
 .list-item-actions {
@@ -61,29 +160,84 @@
     width: 32px;
     height: 32px;
     padding: 0;
+    color: rgba(0, 0, 0, 0.54);
+}
+
+.list-item-actions button:hover {
+    color: #1976D2;
 }
 
 .list-item-actions button i {
     font-size: 18px;
 }
 
-/* Animation for voice button when listening */
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.4);
-    }
-    70% {
-        transform: scale(1.1);
-        box-shadow: 0 0 0 10px rgba(33, 150, 243, 0);
-    }
-    100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(33, 150, 243, 0);
-    }
+.mdl-layout__header {
+    background-color: #1976D2;  /* Clean blue */
 }
 
-.listening {
-    animation: pulse 1.5s infinite;
-    background-color: #f44336 !important;
+.mdl-layout__header-row {
+    padding: 0 40px;
+}
+
+.mdl-layout-title {
+    font-size: 20px;
+    font-weight: 400;
+    color: white;
+}
+
+.mdl-layout__tab-bar {
+    height: auto !important;
+    padding: 0 40px;
+    background-color: #1976D2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: 12px;
+}
+
+.mdl-layout__tab {
+    padding: 0 20px !important;
+    height: 40px !important;
+    line-height: 40px !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    text-transform: none !important;
+    font-size: 15px !important;
+    min-width: 120px;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-radius: 4px;
+    margin: 4px 0;
+}
+
+.mdl-layout__tab.is-active {
+    color: #fff !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.list-tab-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    margin: 4px 0;
+}
+
+.list-delete-button {
+    color: rgba(255, 255, 255, 0.9) !important;
+    margin-left: 8px !important;
+    min-width: 24px !important;
+    width: 24px !important;
+    height: 24px !important;
+    padding: 0 !important;
+}
+
+.list-delete-button:hover {
+    color: #fff !important;
+}
+
+.list-delete-button i {
+    font-size: 18px;
 } 
