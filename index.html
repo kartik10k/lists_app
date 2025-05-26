@@ -18,15 +18,26 @@
         <div class="mdl-layout__header-row">
           <span class="mdl-layout-title">Voice Lists</span>
         </div>
-        <div class="mdl-layout__tab-bar mdl-js-ripple-effect" id="list-tabs">
-          <!-- Tabs will be added dynamically -->
-        </div>
       </header>
 
       <main class="mdl-layout__content">
         <div class="page-content">
-          <div id="list-content">
-            <!-- List items will be added dynamically -->
+          <!-- Lists Container -->
+          <div class="lists-container" id="lists-container">
+            <!-- Lists will be added dynamically -->
+          </div>
+
+          <!-- List Items View (initially hidden) -->
+          <div class="list-items-view" id="list-items-view" style="display: none;">
+            <div class="list-header">
+              <button class="mdl-button mdl-js-button mdl-button--icon back-button" id="back-button" onclick="goBack()">
+                <i class="material-icons">arrow_back</i>
+              </button>
+              <h2 class="list-title" id="current-list-title"></h2>
+            </div>
+            <div class="list-items" id="list-items">
+              <!-- List items will be added dynamically -->
+            </div>
           </div>
 
           <!-- Add Item Dialog -->
@@ -52,10 +63,6 @@
                 <input class="mdl-textfield__input" type="text" id="new-list-name">
                 <label class="mdl-textfield__label" for="new-list-name">List Name</label>
               </div>
-              <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                <input class="mdl-textfield__input" type="text" id="new-list-aliases">
-                <label class="mdl-textfield__label" for="new-list-aliases">Alternative Names (comma-separated)</label>
-              </div>
             </div>
             <div class="mdl-dialog__actions">
               <button type="button" class="mdl-button" id="new-list-cancel">Cancel</button>
@@ -64,11 +71,11 @@
           </dialog>
 
           <!-- Floating Action Buttons -->
-          <button class="mdl-button mdl-js-button mdl-button--fab mdl-button--colored" id="add-item-button" data-tooltip="Add Item">
-            <i class="material-icons">add</i>
-          </button>
           <button class="mdl-button mdl-js-button mdl-button--fab mdl-button--colored" id="voice-button" data-tooltip="Voice Input">
             <i class="material-icons">mic</i>
+          </button>
+          <button class="mdl-button mdl-js-button mdl-button--fab mdl-button--colored" id="add-list-button" data-tooltip="Add List">
+            <i class="material-icons">add</i>
           </button>
         </div>
       </main>
