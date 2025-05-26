@@ -209,6 +209,7 @@ function initSpeechRecognition() {
         recognition.continuous = false;
         recognition.interimResults = false;
         recognition.lang = 'en-US';
+        recognition.maxAlternatives = 1;
 
         recognition.onstart = () => {
             isListening = true;
@@ -226,16 +227,35 @@ function initSpeechRecognition() {
             console.error('Voice recognition error:', event.error);
             isListening = false;
             voiceButton.classList.remove('listening');
+            
+            // Handle specific errors
+            switch(event.error) {
+                case 'no-speech':
+                    alert('No speech was detected. Please try again.');
+                    break;
+                case 'audio-capture':
+                    alert('No microphone was found. Please ensure your microphone is connected and try again.');
+                    break;
+                case 'not-allowed':
+                    alert('Microphone access was denied. Please allow microphone access and try again.');
+                    break;
+                default:
+                    alert('An error occurred with voice recognition. Please try again.');
+            }
         };
 
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript.toLowerCase();
             console.log('Transcript:', transcript);
             processVoiceCommand(transcript);
+            
+            // Ensure recognition stops after processing
+            recognition.stop();
         };
     } else {
         console.error('Speech recognition not supported');
         voiceButton.style.display = 'none';
+        alert('Voice recognition is not supported in your browser. Please use a modern browser like Chrome or Safari.');
     }
 }
 
@@ -248,9 +268,18 @@ function toggleVoiceRecognition() {
         recognition.stop();
     } else {
         try {
-            recognition.start();
+            // Request microphone permission explicitly
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(() => {
+                    recognition.start();
+                })
+                .catch((err) => {
+                    console.error('Microphone permission denied:', err);
+                    alert('Please allow microphone access to use voice commands.');
+                });
         } catch (error) {
             console.error('Error starting recognition:', error);
+            alert('Error starting voice recognition. Please try again.');
         }
     }
 }

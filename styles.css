@@ -274,29 +274,34 @@
         grid-template-columns: 1fr;
         padding: 8px;
         gap: 12px;
+        margin-bottom: 80px; /* Add space for floating buttons */
     }
 
     .list-card {
         padding: 12px;
+        margin: 0 8px;
     }
 
     .list-card-title {
         font-size: 16px;
     }
 
+    /* Fix floating action buttons for mobile */
     #voice-button,
     #add-list-button {
+        position: fixed;
         width: 48px !important;
         height: 48px !important;
-        bottom: 16px;
+        bottom: 24px;
+        z-index: 1000;
     }
 
     #voice-button {
-        right: 16px;
+        right: 24px;
     }
 
     #add-list-button {
-        right: 76px;
+        right: 88px;
     }
 
     #voice-button i,
@@ -306,6 +311,7 @@
 
     .list-items-view {
         padding: 12px;
+        margin-bottom: 80px; /* Add space for floating buttons */
     }
 
     .list-title {
@@ -318,6 +324,30 @@
 
     .list-item-content {
         font-size: 14px;
+    }
+
+    /* Ensure buttons are visible and properly spaced */
+    .mdl-button--fab {
+        margin: 0;
+        padding: 0;
+        min-width: 48px !important;
+        width: 48px !important;
+        height: 48px !important;
+    }
+
+    /* Improve touch targets */
+    .list-item-actions button {
+        min-width: 40px !important;
+        width: 40px !important;
+        height: 40px !important;
+        padding: 8px !important;
+    }
+
+    .back-button {
+        min-width: 40px !important;
+        width: 40px !important;
+        height: 40px !important;
+        padding: 8px !important;
     }
 }
 
