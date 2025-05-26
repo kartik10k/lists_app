@@ -36,6 +36,9 @@ window.goBack = function() {
 // Initialize
 function init() {
     console.log('Initializing app with lists:', lists);
+    // Clean up any numeric lists
+    cleanupLists();
+    
     // Ensure default lists exist
     if (!lists['Groceries']) lists['Groceries'] = [];
     if (!lists['Tasks']) lists['Tasks'] = [];
@@ -46,6 +49,17 @@ function init() {
     
     renderLists();
     setupEventListeners();
+}
+
+// Clean up lists
+function cleanupLists() {
+    // Remove any lists with numeric names
+    Object.keys(lists).forEach(name => {
+        if (!isNaN(name)) {
+            console.log('Removing numeric list:', name);
+            delete lists[name];
+        }
+    });
 }
 
 // Event Listeners
@@ -91,8 +105,17 @@ function setupEventListeners() {
 
 // List Management
 function createList(name) {
-    if (!lists[name]) {
-        lists[name] = [];
+    // Validate list name
+    if (!name || name.trim() === '' || !isNaN(name)) {
+        console.error('Invalid list name:', name);
+        return;
+    }
+    
+    const normalizedName = normalizeListName(name.trim());
+    
+    if (!lists[normalizedName]) {
+        console.log('Creating new list:', normalizedName);
+        lists[normalizedName] = [];
         saveLists();
         renderLists();
     }
