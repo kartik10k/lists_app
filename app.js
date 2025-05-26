@@ -53,13 +53,29 @@ function init() {
 
 // Clean up lists
 function cleanupLists() {
-    // Remove any lists with numeric names
-    Object.keys(lists).forEach(name => {
-        if (!isNaN(name)) {
-            console.log('Removing numeric list:', name);
-            delete lists[name];
+    console.log('Starting list cleanup...');
+    const defaultLists = ['Groceries', 'Tasks', 'Notes'];
+    const listsToKeep = {};
+    
+    // First, ensure default lists exist
+    defaultLists.forEach(name => {
+        listsToKeep[name] = lists[name] || [];
+    });
+    
+    // Then add any non-numeric, non-empty custom lists
+    Object.entries(lists).forEach(([name, items]) => {
+        if (!isNaN(name) || name.trim() === '') {
+            console.log('Removing invalid list:', name);
+        } else if (!defaultLists.includes(name)) {
+            console.log('Keeping custom list:', name);
+            listsToKeep[name] = items;
         }
     });
+    
+    // Replace the lists object with cleaned version
+    lists = listsToKeep;
+    console.log('Cleaned lists:', lists);
+    saveLists();
 }
 
 // Event Listeners
@@ -112,9 +128,9 @@ function createList(name) {
     }
     
     const normalizedName = normalizeListName(name.trim());
+    console.log('Creating list with normalized name:', normalizedName);
     
     if (!lists[normalizedName]) {
-        console.log('Creating new list:', normalizedName);
         lists[normalizedName] = [];
         saveLists();
         renderLists();
