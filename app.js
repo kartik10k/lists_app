@@ -20,6 +20,10 @@ let lists = JSON.parse(localStorage.getItem('lists')) || {
     'Notes': []
 };
 
+// Global variables for edit functionality
+let currentEditList = '';
+let currentEditItem = '';
+
 // Global function for back button
 window.goBack = function() {
     console.log('goBack called');
@@ -80,8 +84,20 @@ function cleanupLists() {
 
 // Event Listeners
 function setupEventListeners() {
-    // Voice button
-    voiceButton.addEventListener('click', toggleVoiceRecognition);
+    // Voice button - push to talk
+    voiceButton.addEventListener('mousedown', startRecognition);
+    voiceButton.addEventListener('mouseup', stopRecognition);
+    voiceButton.addEventListener('mouseleave', stopRecognition);
+    
+    // Touch events for mobile
+    voiceButton.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Prevent default touch behavior
+        startRecognition();
+    });
+    voiceButton.addEventListener('touchend', (e) => {
+        e.preventDefault(); // Prevent default touch behavior
+        stopRecognition();
+    });
     
     // Add list button
     addListButton.addEventListener('click', () => {
@@ -185,19 +201,25 @@ function deleteItem(listName, itemId) {
 // Rendering
 function renderLists() {
     console.log('Rendering lists:', lists);
-    listsContainer.innerHTML = '';
-    
-    if (!listsContainer) {
-        console.error('Lists container not found!');
+    const listsGrid = document.getElementById('lists-grid');
+    if (!listsGrid) {
+        console.error('Lists grid not found!');
         return;
     }
+    
+    listsGrid.innerHTML = '';
     
     Object.entries(lists).forEach(([name, items]) => {
         console.log('Creating card for list:', name, 'with items:', items);
         const card = document.createElement('div');
         card.className = 'list-card';
         card.innerHTML = `
-            <h3 class="list-card-title">${name}</h3>
+            <div class="list-card-title">
+                <span>${name}</span>
+                <button class="edit-list-button" onclick="event.stopPropagation(); showEditListDialog('${name}')">
+                    <i class="material-icons">edit</i>
+                </button>
+            </div>
             <div class="list-card-count">${items.length} items</div>
             ${name !== 'Groceries' && name !== 'Tasks' && name !== 'Notes' ? 
                 `<button class="mdl-button mdl-js-button mdl-button--icon list-delete-button" onclick="event.stopPropagation(); deleteList('${name}')">
@@ -205,7 +227,7 @@ function renderLists() {
                 </button>` : ''}
         `;
         card.addEventListener('click', () => showList(name));
-        listsContainer.appendChild(card);
+        listsGrid.appendChild(card);
     });
 }
 
@@ -219,17 +241,24 @@ function showList(name) {
 }
 
 function renderListItems(listName) {
+    if (!listItemsContainer) return;
+    
     listItemsContainer.innerHTML = '';
-    lists[listName].forEach(item => {
+    const items = lists[listName] || [];
+    
+    items.forEach(item => {
         const itemElement = document.createElement('div');
         itemElement.className = `list-item ${item.completed ? 'completed' : ''}`;
+        const itemText = typeof item === 'object' ? item.text : item;
+        const itemId = typeof item === 'object' ? item.id : item;
+        
         itemElement.innerHTML = `
-            <div class="list-item-content">${item.text}</div>
+            <div class="list-item-content">${itemText}</div>
             <div class="list-item-actions">
-                <button class="mdl-button mdl-js-button mdl-button--icon" onclick="toggleItem('${listName}', ${item.id})">
-                    <i class="material-icons">${item.completed ? 'check_circle' : 'radio_button_unchecked'}</i>
+                <button class="edit-item-button" onclick="event.stopPropagation(); showEditItemDialog('${itemText.replace(/'/g, "\\'")}', '${listName}')">
+                    <i class="material-icons">edit</i>
                 </button>
-                <button class="mdl-button mdl-js-button mdl-button--icon" onclick="deleteItem('${listName}', ${item.id})">
+                <button class="delete-item-button" onclick="event.stopPropagation(); deleteItem('${listName}', ${itemId})">
                     <i class="material-icons">delete</i>
                 </button>
             </div>
@@ -246,7 +275,7 @@ function initSpeechRecognition() {
     if ('webkitSpeechRecognition' in window) {
         recognition = new webkitSpeechRecognition();
         recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.interimResults = true;
         recognition.lang = 'en-US';
         recognition.maxAlternatives = 1;
 
@@ -267,7 +296,6 @@ function initSpeechRecognition() {
             isListening = false;
             voiceButton.classList.remove('listening');
             
-            // Handle specific errors
             switch(event.error) {
                 case 'no-speech':
                     alert('No speech was detected. Please try again.');
@@ -284,12 +312,11 @@ function initSpeechRecognition() {
         };
 
         recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript.toLowerCase();
-            console.log('Transcript:', transcript);
-            processVoiceCommand(transcript);
-            
-            // Ensure recognition stops after processing
-            recognition.stop();
+            if (event.results[0].isFinal) {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+                console.log('Final transcript:', transcript);
+                processVoiceCommand(transcript);
+            }
         };
     } else {
         console.error('Speech recognition not supported');
@@ -298,14 +325,12 @@ function initSpeechRecognition() {
     }
 }
 
-function toggleVoiceRecognition() {
+function startRecognition() {
     if (!recognition) {
         initSpeechRecognition();
     }
     
-    if (isListening) {
-        recognition.stop();
-    } else {
+    if (!isListening) {
         try {
             // Request microphone permission explicitly
             navigator.mediaDevices.getUserMedia({ audio: true })
@@ -320,6 +345,15 @@ function toggleVoiceRecognition() {
             console.error('Error starting recognition:', error);
             alert('Error starting voice recognition. Please try again.');
         }
+    }
+}
+
+function stopRecognition() {
+    if (isListening && recognition) {
+        console.log('Stopping recognition');
+        recognition.stop();
+        isListening = false;
+        voiceButton.classList.remove('listening');
     }
 }
 
@@ -430,6 +464,103 @@ function normalizeListName(name) {
 function saveLists() {
     console.log('Saving lists:', lists);
     localStorage.setItem('lists', JSON.stringify(lists));
+}
+
+// Function to show edit list dialog
+function showEditListDialog(listName) {
+    currentEditList = listName;
+    const dialog = document.getElementById('edit-list-dialog');
+    const input = document.getElementById('edit-list-name');
+    input.value = listName;
+    dialog.showModal();
+}
+
+// Function to close edit list dialog
+function closeEditListDialog() {
+    const dialog = document.getElementById('edit-list-dialog');
+    dialog.close();
+    currentEditList = '';
+}
+
+// Function to save edited list name
+function saveListName() {
+    const newName = document.getElementById('edit-list-name').value.trim();
+    if (newName && newName !== currentEditList) {
+        if (lists[newName]) {
+            alert('A list with this name already exists!');
+            return;
+        }
+        
+        // Update the global lists object directly
+        lists[newName] = lists[currentEditList];
+        delete lists[currentEditList];
+        
+        // Save to localStorage
+        localStorage.setItem('lists', JSON.stringify(lists));
+        
+        // Update UI
+        closeEditListDialog();
+        renderLists();
+        
+        // If we're currently viewing the edited list, update the view
+        if (currentList === currentEditList) {
+            currentList = newName;
+            document.getElementById('current-list-title').textContent = newName;
+            renderListItems(newName);
+        }
+    }
+    closeEditListDialog();
+}
+
+// Function to show edit item dialog
+function showEditItemDialog(itemText, listName) {
+    currentEditItem = itemText;
+    currentList = listName;
+    const dialog = document.getElementById('edit-item-dialog');
+    const input = document.getElementById('edit-item-text');
+    input.value = itemText;
+    dialog.showModal();
+}
+
+// Function to close edit item dialog
+function closeEditItemDialog() {
+    const dialog = document.getElementById('edit-item-dialog');
+    dialog.close();
+    currentEditItem = '';
+}
+
+// Function to save edited item
+function saveItemEdit() {
+    const newText = document.getElementById('edit-item-text').value.trim();
+    if (newText && newText !== currentEditItem && currentList) {
+        // Update the global lists object directly
+        const items = lists[currentList] || [];
+        
+        // Find and replace the item
+        const index = items.findIndex(item => {
+            const itemText = typeof item === 'object' ? item.text : item;
+            return itemText === currentEditItem;
+        });
+        
+        if (index !== -1) {
+            if (typeof items[index] === 'object') {
+                items[index].text = newText;
+            } else {
+                items[index] = newText;
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('lists', JSON.stringify(lists));
+            
+            // Update UI immediately
+            closeEditItemDialog();
+            renderListItems(currentList);
+            
+            // Also update the list count in the main view
+            renderLists();
+        }
+    }
+    closeEditItemDialog();
 }
 
 // Initialize the app

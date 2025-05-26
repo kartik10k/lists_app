@@ -13,74 +13,77 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
-      <header class="mdl-layout__header">
-        <div class="mdl-layout__header-row">
-          <span class="mdl-layout-title">Voice Lists</span>
-        </div>
-      </header>
-
-      <main class="mdl-layout__content">
-        <div class="page-content">
-          <!-- Lists Container -->
-          <div class="lists-container" id="lists-container">
-            <!-- Lists will be added dynamically -->
-          </div>
-
-          <!-- List Items View (initially hidden) -->
-          <div class="list-items-view" id="list-items-view" style="display: none;">
-            <div class="list-header">
-              <button class="mdl-button mdl-js-button mdl-button--icon back-button" id="back-button" onclick="goBack()">
-                <i class="material-icons">arrow_back</i>
-              </button>
-              <h2 class="list-title" id="current-list-title"></h2>
-            </div>
-            <div class="list-items" id="list-items">
-              <!-- List items will be added dynamically -->
-            </div>
-          </div>
-
-          <!-- Add Item Dialog -->
-          <dialog class="mdl-dialog" id="add-item-dialog">
-            <h4 class="mdl-dialog__title">Add New Item</h4>
-            <div class="mdl-dialog__content">
-              <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                <input class="mdl-textfield__input" type="text" id="new-item-input">
-                <label class="mdl-textfield__label" for="new-item-input">Item</label>
-              </div>
-            </div>
-            <div class="mdl-dialog__actions">
-              <button type="button" class="mdl-button" id="add-item-cancel">Cancel</button>
-              <button type="button" class="mdl-button mdl-button--colored" id="add-item-submit">Add</button>
-            </div>
-          </dialog>
-
-          <!-- New List Dialog -->
-          <dialog class="mdl-dialog" id="new-list-dialog">
-            <h4 class="mdl-dialog__title">Create New List</h4>
-            <div class="mdl-dialog__content">
-              <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                <input class="mdl-textfield__input" type="text" id="new-list-name">
-                <label class="mdl-textfield__label" for="new-list-name">List Name</label>
-              </div>
-            </div>
-            <div class="mdl-dialog__actions">
-              <button type="button" class="mdl-button" id="new-list-cancel">Cancel</button>
-              <button type="button" class="mdl-button mdl-button--colored" id="new-list-submit">Create</button>
-            </div>
-          </dialog>
-
-          <!-- Floating Action Buttons -->
-          <button class="mdl-button mdl-js-button mdl-button--fab mdl-button--colored" id="voice-button" data-tooltip="Voice Input">
-            <i class="material-icons">mic</i>
-          </button>
-          <button class="mdl-button mdl-js-button mdl-button--fab mdl-button--colored" id="add-list-button" data-tooltip="Add List">
+    <div class="container">
+      <!-- Lists View -->
+      <div id="lists-container">
+        <div class="lists-header">
+          <h1>My Lists</h1>
+          <button id="add-list-button" class="add-button" title="Add List">
             <i class="material-icons">add</i>
           </button>
         </div>
-      </main>
+        <div id="lists-grid"></div>
+      </div>
+
+      <!-- List Items View -->
+      <div id="list-items-view" style="display: none;">
+        <div class="list-header">
+          <button id="back-button" onclick="goBack()">
+            <i class="material-icons">arrow_back</i>
+          </button>
+          <h2 id="current-list-title"></h2>
+        </div>
+        <div id="list-items"></div>
+        <button id="add-item-button" class="floating-button">
+          <i class="material-icons">add</i>
+        </button>
+      </div>
+
+      <!-- Voice Button -->
+      <button id="voice-button" class="floating-button" title="Voice Command">
+        <i class="material-icons">mic</i>
+      </button>
+
+      <!-- Add List Dialog -->
+      <dialog id="new-list-dialog">
+        <h3>Create New List</h3>
+        <input type="text" id="new-list-name" placeholder="Enter list name">
+        <div class="dialog-buttons">
+          <button id="new-list-submit">Create</button>
+          <button id="new-list-cancel">Cancel</button>
+        </div>
+      </dialog>
+
+      <!-- Add Item Dialog -->
+      <dialog id="add-item-dialog">
+        <h3>Add New Item</h3>
+        <input type="text" id="new-item-input" placeholder="Enter item text">
+        <div class="dialog-buttons">
+          <button id="new-item-submit">Add</button>
+          <button id="add-item-cancel">Cancel</button>
+        </div>
+      </dialog>
+
+      <!-- Edit List Dialog -->
+      <dialog id="edit-list-dialog">
+        <h3>Edit List Name</h3>
+        <input type="text" id="edit-list-name" placeholder="Enter new list name">
+        <div class="dialog-buttons">
+          <button id="edit-list-submit" onclick="saveListName()">Save</button>
+          <button id="edit-list-cancel" onclick="closeEditListDialog()">Cancel</button>
+        </div>
+      </dialog>
+
+      <!-- Edit Item Dialog -->
+      <dialog id="edit-item-dialog">
+        <h3>Edit Item</h3>
+        <input type="text" id="edit-item-text" placeholder="Enter new item text">
+        <div class="dialog-buttons">
+          <button id="edit-item-submit" onclick="saveItemEdit()">Save</button>
+          <button id="edit-item-cancel" onclick="closeEditItemDialog()">Cancel</button>
+        </div>
+      </dialog>
     </div>
-    <script src="dialog-polyfill.js"></script>
     <script src="app.js"></script>
   </body>
 </html> 
