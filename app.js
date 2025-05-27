@@ -253,7 +253,13 @@ function renderListItems(listName) {
         const itemId = typeof item === 'object' ? item.id : item;
         
         itemElement.innerHTML = `
-            <div class="list-item-content">${itemText}</div>
+            <div class="list-item-content">
+                <input type="checkbox" 
+                       class="item-checkbox" 
+                       ${item.completed ? 'checked' : ''} 
+                       onchange="toggleItem('${listName}', ${itemId})">
+                <span class="item-text">${itemText}</span>
+            </div>
             <div class="list-item-actions">
                 <button class="edit-item-button" onclick="event.stopPropagation(); showEditItemDialog('${itemText.replace(/'/g, "\\'")}', '${listName}')">
                     <i class="material-icons">edit</i>
@@ -313,7 +319,7 @@ function initSpeechRecognition() {
 
         recognition.onresult = (event) => {
             if (event.results[0].isFinal) {
-                const transcript = event.results[0][0].transcript.toLowerCase();
+                const transcript = event.results[0][0].transcript.trim();
                 console.log('Final transcript:', transcript);
                 processVoiceCommand(transcript);
             }

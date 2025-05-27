@@ -16,13 +16,14 @@
     background: #f8f9fa;
     border-radius: 8px;
     transition: all 0.2s ease;
+    margin-bottom: 8px;
 }
 
 .list-item:hover {
     background: #f1f3f5;
 }
 
-.list-item.completed {
+.list-item.completed .item-text {
     text-decoration: line-through;
     color: #666;
 }
@@ -30,8 +31,22 @@
 .list-item-content {
     flex-grow: 1;
     margin-right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.item-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #1976D2;
+}
+
+.item-text {
     font-size: 16px;
     color: #333;
+    transition: all 0.2s ease;
 }
 
 #add-item-button {
