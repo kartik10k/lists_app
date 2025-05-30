@@ -14,15 +14,24 @@ const newItemInput = document.getElementById('new-item-input');
 
 // State
 let currentList = null;
-let lists = JSON.parse(localStorage.getItem('lists')) || {
-    'Groceries': [],
-    'Tasks': [],
-    'Notes': []
-};
+let lists = {};
+
+// Initialize default lists
+const defaultLists = ['Groceries', 'Tasks', 'Notes'];
 
 // Global variables for edit functionality
 let currentEditList = '';
 let currentEditItem = '';
+
+// Add new DOM element for transcription
+const transcriptionDisplay = document.createElement('div');
+transcriptionDisplay.id = 'transcription-display';
+transcriptionDisplay.className = 'transcription-display';
+document.body.appendChild(transcriptionDisplay);
+
+// AI Model for list categorization
+let model = null;
+let listEmbeddings = null;
 
 // Global function for back button
 window.goBack = function() {
@@ -37,40 +46,66 @@ window.goBack = function() {
     renderLists();
 };
 
+// Load lists from localStorage and ensure default lists exist
+function loadLists() {
+    const storedLists = JSON.parse(localStorage.getItem('lists')) || {};
+    
+    // Initialize with default lists
+    defaultLists.forEach(name => {
+        lists[name] = storedLists[name] || [];
+    });
+    
+    // Add any custom lists
+    Object.entries(storedLists).forEach(([name, items]) => {
+        if (!defaultLists.includes(name)) {
+            lists[name] = items;
+        }
+    });
+    
+    // Save to ensure all lists are in localStorage
+    saveLists();
+}
+
 // Initialize
-function init() {
-    console.log('Initializing app with lists:', lists);
+async function init() {
+    console.log('Initializing app...');
+    
+    // Load lists immediately
+    loadLists();
+    
     // Clean up any numeric lists
     cleanupLists();
     
-    // Ensure default lists exist
-    if (!lists['Groceries']) lists['Groceries'] = [];
-    if (!lists['Tasks']) lists['Tasks'] = [];
-    if (!lists['Notes']) lists['Notes'] = [];
+    // Initialize AI model in the background
+    initAIModel().catch(error => {
+        console.error('Error initializing AI model:', error);
+    });
     
-    // Save to ensure lists are in localStorage
-    saveLists();
-    
-    renderLists();
+    // Set up event listeners
     setupEventListeners();
+    
+    // Initialize speech recognition
+    initSpeechRecognition();
+    
+    // Render lists immediately
+    renderLists();
+    
+    console.log('Initialization complete. Lists:', lists);
 }
 
 // Clean up lists
 function cleanupLists() {
     console.log('Starting list cleanup...');
-    const defaultLists = ['Groceries', 'Tasks', 'Notes'];
     const listsToKeep = {};
     
-    // First, ensure default lists exist
+    // Keep default lists
     defaultLists.forEach(name => {
         listsToKeep[name] = lists[name] || [];
     });
     
-    // Then add any non-numeric, non-empty custom lists
+    // Add any non-numeric, non-empty custom lists
     Object.entries(lists).forEach(([name, items]) => {
-        if (!isNaN(name) || name.trim() === '') {
-            console.log('Removing invalid list:', name);
-        } else if (!defaultLists.includes(name)) {
+        if (!defaultLists.includes(name) && !isNaN(name) && name.trim() !== '') {
             console.log('Keeping custom list:', name);
             listsToKeep[name] = items;
         }
@@ -84,19 +119,13 @@ function cleanupLists() {
 
 // Event Listeners
 function setupEventListeners() {
-    // Voice button - push to talk
-    voiceButton.addEventListener('mousedown', startRecognition);
-    voiceButton.addEventListener('mouseup', stopRecognition);
-    voiceButton.addEventListener('mouseleave', stopRecognition);
-    
-    // Touch events for mobile
-    voiceButton.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // Prevent default touch behavior
-        startRecognition();
-    });
-    voiceButton.addEventListener('touchend', (e) => {
-        e.preventDefault(); // Prevent default touch behavior
-        stopRecognition();
+    // Voice button - single click to start/stop
+    voiceButton.addEventListener('click', () => {
+        if (!isListening) {
+            startRecognition();
+        } else {
+            stopRecognition();
+        }
     });
     
     // Add list button
@@ -154,10 +183,35 @@ function createList(name) {
 }
 
 function deleteList(name) {
-    if (confirm(`Are you sure you want to delete the list "${name}"?`)) {
+    const confirmDialog = document.createElement('dialog');
+    confirmDialog.className = 'confirm-dialog';
+    
+    const content = document.createElement('div');
+    content.innerHTML = `
+        <h3>Delete List</h3>
+        <p>Are you sure you want to delete the list "${name}"?</p>
+        <p class="warning">This action cannot be undone.</p>
+        <div class="dialog-buttons">
+            <button class="cancel-button" onclick="this.closest('dialog').close()">Cancel</button>
+            <button class="delete-button" onclick="confirmDeleteList('${name.replace(/'/g, "\\'")}')">Delete</button>
+        </div>
+    `;
+    
+    confirmDialog.appendChild(content);
+    document.body.appendChild(confirmDialog);
+    confirmDialog.showModal();
+}
+
+function confirmDeleteList(name) {
+    if (lists[name]) {
         delete lists[name];
         saveLists();
         renderLists();
+        const dialog = document.querySelector('.confirm-dialog');
+        if (dialog) {
+            dialog.close();
+            dialog.remove();
+        }
     }
 }
 
@@ -188,6 +242,30 @@ function toggleItem(listName, itemId) {
 }
 
 function deleteItem(listName, itemId) {
+    const item = lists[listName].find(item => item.id === itemId);
+    if (!item) return;
+
+    const confirmDialog = document.createElement('dialog');
+    confirmDialog.className = 'confirm-dialog';
+    
+    const content = document.createElement('div');
+    content.innerHTML = `
+        <h3>Delete Item</h3>
+        <p>Are you sure you want to delete this item?</p>
+        <p class="item-text">${item.text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+        <p class="warning">This action cannot be undone.</p>
+        <div class="dialog-buttons">
+            <button class="cancel-button" onclick="this.closest('dialog').close()">Cancel</button>
+            <button class="delete-button" onclick="confirmDeleteItem('${listName.replace(/'/g, "\\'")}', ${itemId})">Delete</button>
+        </div>
+    `;
+    
+    confirmDialog.appendChild(content);
+    document.body.appendChild(confirmDialog);
+    confirmDialog.showModal();
+}
+
+function confirmDeleteItem(listName, itemId) {
     if (lists[listName]) {
         lists[listName] = lists[listName].filter(item => item.id !== itemId);
         saveLists();
@@ -195,6 +273,11 @@ function deleteItem(listName, itemId) {
             renderListItems(listName);
         }
         renderLists();
+        const dialog = document.querySelector('.confirm-dialog');
+        if (dialog) {
+            dialog.close();
+            dialog.remove();
+        }
     }
 }
 
@@ -207,28 +290,48 @@ function renderLists() {
         return;
     }
     
+    // Clear existing content
     listsGrid.innerHTML = '';
     
+    // First render default lists
+    defaultLists.forEach(name => {
+        console.log('Rendering default list:', name);
+        const items = lists[name] || [];
+        const card = createListCard(name, items);
+        listsGrid.appendChild(card);
+    });
+    
+    // Then render custom lists
     Object.entries(lists).forEach(([name, items]) => {
-        console.log('Creating card for list:', name, 'with items:', items);
-        const card = document.createElement('div');
-        card.className = 'list-card';
-        card.innerHTML = `
-            <div class="list-card-title">
-                <span>${name}</span>
+        if (!defaultLists.includes(name)) {
+            console.log('Rendering custom list:', name);
+            const card = createListCard(name, items);
+            listsGrid.appendChild(card);
+        }
+    });
+}
+
+// Helper function to create list card
+function createListCard(name, items) {
+    const card = document.createElement('div');
+    card.className = 'list-card';
+    card.innerHTML = `
+        <div class="list-card-title">
+            <span>${name}</span>
+            <div class="list-card-actions">
                 <button class="edit-list-button" onclick="event.stopPropagation(); showEditListDialog('${name}')">
                     <i class="material-icons">edit</i>
                 </button>
+                ${!defaultLists.includes(name) ? 
+                    `<button class="delete-list-button" onclick="event.stopPropagation(); deleteList('${name}')">
+                        <i class="material-icons">delete</i>
+                    </button>` : ''}
             </div>
-            <div class="list-card-count">${items.length} items</div>
-            ${name !== 'Groceries' && name !== 'Tasks' && name !== 'Notes' ? 
-                `<button class="mdl-button mdl-js-button mdl-button--icon list-delete-button" onclick="event.stopPropagation(); deleteList('${name}')">
-                    <i class="material-icons">delete</i>
-                </button>` : ''}
-        `;
-        card.addEventListener('click', () => showList(name));
-        listsGrid.appendChild(card);
-    });
+        </div>
+        <div class="list-card-count">${items.length} items</div>
+    `;
+    card.addEventListener('click', () => showList(name));
+    return card;
 }
 
 function showList(name) {
@@ -261,6 +364,9 @@ function renderListItems(listName) {
                 <span class="item-text">${itemText}</span>
             </div>
             <div class="list-item-actions">
+                <button class="move-item-button" onclick="event.stopPropagation(); showMoveOptionsDialog({text: '${itemText.replace(/'/g, "\\'")}', id: ${itemId}, completed: ${item.completed}}, '${listName}')">
+                    <i class="material-icons">swap_horiz</i>
+                </button>
                 <button class="edit-item-button" onclick="event.stopPropagation(); showEditItemDialog('${itemText.replace(/'/g, "\\'")}', '${listName}')">
                     <i class="material-icons">edit</i>
                 </button>
@@ -276,11 +382,13 @@ function renderListItems(listName) {
 // Voice Recognition
 let recognition = null;
 let isListening = false;
+let silenceTimer = null;
+let currentTranscript = '';
 
 function initSpeechRecognition() {
     if ('webkitSpeechRecognition' in window) {
         recognition = new webkitSpeechRecognition();
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'en-US';
         recognition.maxAlternatives = 1;
@@ -288,12 +396,27 @@ function initSpeechRecognition() {
         recognition.onstart = () => {
             isListening = true;
             voiceButton.classList.add('listening');
+            transcriptionDisplay.style.display = 'block';
+            transcriptionDisplay.innerHTML = `
+                <div class="listening-indicator">
+                    <span class="pulse-dot"></span>
+                    Listening...
+                </div>
+                <div class="transcript-container">
+                    <div class="interim-transcript"></div>
+                    <div class="final-transcript"></div>
+                </div>
+            `;
             console.log('Voice recognition started');
         };
 
         recognition.onend = () => {
             isListening = false;
             voiceButton.classList.remove('listening');
+            // Keep the display visible for a moment after stopping
+            setTimeout(() => {
+                transcriptionDisplay.style.display = 'none';
+            }, 1000);
             console.log('Voice recognition ended');
         };
 
@@ -301,6 +424,7 @@ function initSpeechRecognition() {
             console.error('Voice recognition error:', event.error);
             isListening = false;
             voiceButton.classList.remove('listening');
+            transcriptionDisplay.style.display = 'none';
             
             switch(event.error) {
                 case 'no-speech':
@@ -318,11 +442,44 @@ function initSpeechRecognition() {
         };
 
         recognition.onresult = (event) => {
-            if (event.results[0].isFinal) {
-                const transcript = event.results[0][0].transcript.trim();
-                console.log('Final transcript:', transcript);
-                processVoiceCommand(transcript);
+            let interimTranscript = '';
+            let finalTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript + ' ';
+                } else {
+                    interimTranscript += transcript;
+                }
             }
+
+            // Update current transcript by appending new content
+            if (finalTranscript) {
+                currentTranscript += finalTranscript;
+            }
+
+            // Update the display with both interim and final transcripts
+            const interimElement = transcriptionDisplay.querySelector('.interim-transcript');
+            const finalElement = transcriptionDisplay.querySelector('.final-transcript');
+            
+            if (interimElement && finalElement) {
+                interimElement.textContent = interimTranscript;
+                finalElement.textContent = currentTranscript;
+            }
+
+            // Reset silence timer
+            if (silenceTimer) {
+                clearTimeout(silenceTimer);
+            }
+
+            // Set new silence timer
+            silenceTimer = setTimeout(() => {
+                if (currentTranscript.trim()) {
+                    processVoiceCommand(currentTranscript);
+                    stopRecognition();
+                }
+            }, 3000); // 3 seconds of silence
         };
     } else {
         console.error('Speech recognition not supported');
@@ -338,6 +495,9 @@ function startRecognition() {
     
     if (!isListening) {
         try {
+            // Reset transcript when starting new recognition
+            currentTranscript = '';
+            
             // Request microphone permission explicitly
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(() => {
@@ -357,84 +517,238 @@ function startRecognition() {
 function stopRecognition() {
     if (isListening && recognition) {
         console.log('Stopping recognition');
+        if (silenceTimer) {
+            clearTimeout(silenceTimer);
+        }
         recognition.stop();
         isListening = false;
         voiceButton.classList.remove('listening');
     }
 }
 
-function processVoiceCommand(transcript) {
+// Initialize the AI model
+async function initAIModel() {
+    try {
+        // Load the Universal Sentence Encoder model
+        model = await use.load();
+        console.log('AI model loaded successfully');
+    } catch (error) {
+        console.error('Error loading AI model:', error);
+    }
+}
+
+// Function to categorize text into the most appropriate list
+async function categorizeText(text) {
+    if (!model) {
+        console.error('AI model not initialized');
+        return null;
+    }
+
+    try {
+        // Get all current lists and their items as context
+        const listContexts = {};
+        for (const [listName, items] of Object.entries(lists)) {
+            // Create context from list name and its items
+            const itemTexts = items.map(item => typeof item === 'object' ? item.text : item);
+            listContexts[listName] = [listName, ...itemTexts];
+        }
+
+        // Get embeddings for the input text and all list contexts
+        const textEmbedding = await model.embed([text]);
+        const similarities = {};
+
+        // Calculate similarity with each list's context
+        for (const [listName, context] of Object.entries(listContexts)) {
+            const contextEmbedding = await model.embed(context);
+            const similarity = tf.matMul(textEmbedding, contextEmbedding.transpose()).dataSync()[0];
+            similarities[listName] = similarity;
+        }
+
+        // Find the best matching list
+        let maxSimilarity = -1;
+        let bestList = null;
+
+        for (const [listName, similarity] of Object.entries(similarities)) {
+            if (similarity > maxSimilarity) {
+                maxSimilarity = similarity;
+                bestList = listName;
+            }
+        }
+
+        // Use a lower threshold for zero-shot classification
+        const threshold = 0.2;
+
+        // Log the similarities for debugging
+        console.log('Text:', text);
+        console.log('Similarities:', similarities);
+        console.log('Best match:', bestList, 'with similarity:', maxSimilarity);
+
+        // Return both the best list and all similarities
+        return {
+            bestList: maxSimilarity > threshold ? bestList : null,
+            similarities,
+            maxSimilarity
+        };
+    } catch (error) {
+        console.error('Error categorizing text:', error);
+        return null;
+    }
+}
+
+// Update the processVoiceCommand function to use the improved categorization
+async function processVoiceCommand(transcript) {
     console.log('Processing command:', transcript);
     
-    // Extract list name and item text
-    let listName, itemText;
-    
-    // Try different patterns
-    const patterns = [
-        // "add [item] to [list]"
-        { regex: /add\s+(.+?)\s+to\s+(.+)/i, itemIndex: 1, listIndex: 2 },
-        // "[item] in [list]"
-        { regex: /(.+?)\s+in\s+(.+)/i, itemIndex: 1, listIndex: 2 },
-        // "put [item] in [list]"
-        { regex: /put\s+(.+?)\s+in\s+(.+)/i, itemIndex: 1, listIndex: 2 },
-        // "add [item] in [list]"
-        { regex: /add\s+(.+?)\s+in\s+(.+)/i, itemIndex: 1, listIndex: 2 },
-        // "put [item] to [list]"
-        { regex: /put\s+(.+?)\s+to\s+(.+)/i, itemIndex: 1, listIndex: 2 },
-        // "[item] to [list]"
-        { regex: /(.+?)\s+to\s+(.+)/i, itemIndex: 1, listIndex: 2 }
-    ];
-    
-    // Try each pattern
-    for (const pattern of patterns) {
-        const match = transcript.match(pattern.regex);
-        if (match) {
-            itemText = match[pattern.itemIndex].trim();
-            listName = match[pattern.listIndex].trim();
-            console.log('Pattern matched:', pattern.regex);
-            console.log('Extracted item:', itemText);
-            console.log('Extracted list:', listName);
-            break;
+    // First try to find explicit list mentions
+    let listName = null;
+    Object.keys(lists).forEach(name => {
+        if (transcript.toLowerCase().includes(name.toLowerCase())) {
+            listName = name;
+        }
+    });
+
+    // If no explicit list mention, use AI to categorize
+    if (!listName) {
+        const categorization = await categorizeText(transcript);
+        console.log('AI categorization:', categorization);
+        
+        if (categorization && categorization.bestList) {
+            listName = categorization.bestList;
         }
     }
-    
-    if (listName && itemText) {
-        console.log('Adding item:', itemText, 'to list:', listName);
-        
-        // Normalize list name (handle singular/plural)
-        const normalizedListName = normalizeListName(listName);
-        console.log('Normalized list name:', normalizedListName);
-        
-        // Create list if it doesn't exist
-        if (!lists[normalizedListName]) {
-            console.log('Creating new list:', normalizedListName);
-            createList(normalizedListName);
-        }
-        
-        // Add item to the list
-        addItem(normalizedListName, itemText);
-        
+
+    // Create a temporary item
+    const tempItem = {
+        text: transcript.trim(),
+        id: Date.now(),
+        completed: false
+    };
+
+    // If we found a list (either explicitly or through AI)
+    if (listName) {
+        // Add the item
+        addItem(listName, tempItem.text);
+
         // Show the list if we're not already viewing it
-        if (currentList !== normalizedListName) {
-            showList(normalizedListName);
+        if (currentList !== listName) {
+            showList(listName);
         }
+
+        // Show move options dialog
+        showMoveOptionsDialog(tempItem, listName);
+    } else {
+        // If no list was found, create a new list
+        const newListName = 'New List ' + (Object.keys(lists).length + 1);
+        createList(newListName);
+        addItem(newListName, tempItem.text);
+        showList(newListName);
         
+        // Show move options dialog
+        showMoveOptionsDialog(tempItem, newListName);
+    }
+}
+
+// Function to show move options dialog
+function showMoveOptionsDialog(item, currentListName) {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'move-options-dialog';
+    
+    // Get all lists including the current one
+    const allLists = [...defaultLists, ...Object.keys(lists).filter(name => !defaultLists.includes(name))];
+    
+    const content = document.createElement('div');
+    content.innerHTML = `
+        <h3>Move Item</h3>
+        <p>Select a list to move this item to:</p>
+        <div class="move-options">
+            ${allLists.map(listName => `
+                <button class="move-option ${listName === currentListName ? 'current selected' : ''}" 
+                        data-list-name="${listName.replace(/"/g, '&quot;')}"
+                        onclick="selectListForMove('${listName.replace(/'/g, "\\'")}')">
+                    ${listName}
+                </button>
+            `).join('')}
+        </div>
+        <div class="dialog-buttons">
+            <button class="cancel-button" onclick="this.closest('dialog').close()">Cancel</button>
+            <button class="done-button" onclick="confirmMoveItem('${item.text.replace(/'/g, "\\'")}', '${currentListName.replace(/'/g, "\\'")}')">Done</button>
+        </div>
+    `;
+    
+    dialog.appendChild(content);
+    document.body.appendChild(dialog);
+    dialog.showModal();
+
+    // Set the current list as selected
+    selectedListForMove = currentListName;
+}
+
+// Global variable to store selected list for moving
+let selectedListForMove = null;
+
+// Function to select a list for moving
+function selectListForMove(listName) {
+    selectedListForMove = listName;
+    
+    // Update UI to show selection
+    const moveOptions = document.querySelectorAll('.move-option');
+    moveOptions.forEach(option => {
+        if (option.getAttribute('data-list-name') === listName) {
+            option.classList.add('selected');
+        } else {
+            option.classList.remove('selected');
+        }
+    });
+}
+
+// Function to confirm and execute the move
+function confirmMoveItem(itemText, fromList) {
+    if (selectedListForMove) {
+        moveItem(itemText, fromList, selectedListForMove);
+        selectedListForMove = null; // Reset selection
+    } else {
+        alert('Please select a list to move the item to.');
+    }
+}
+
+// Function to move item between lists
+function moveItem(itemText, fromList, toList) {
+    console.log('Moving item:', { itemText, fromList, toList });
+    
+    // Find the item in the source list
+    const itemIndex = lists[fromList].findIndex(item => item.text === itemText);
+    if (itemIndex === -1) {
+        console.error('Item not found in source list');
         return;
     }
     
-    // If we couldn't parse the command, try to find a list name in the transcript
-    Object.keys(lists).forEach(name => {
-        if (transcript.toLowerCase().includes(name.toLowerCase())) {
-            console.log('Switching to list:', name);
-            showList(name);
-            return;
-        }
+    // Get the complete item object
+    const item = lists[fromList][itemIndex];
+    
+    // Remove from current list
+    lists[fromList].splice(itemIndex, 1);
+    
+    // Add to new list with the same properties
+    lists[toList].push({
+        text: item.text,
+        completed: item.completed,
+        id: item.id
     });
     
-    // If we still haven't handled the command, try to add the entire transcript as an item to the current list
-    if (currentList && transcript.trim()) {
-        console.log('Adding to current list:', currentList, 'item:', transcript.trim());
-        addItem(currentList, transcript.trim());
+    // Save changes
+    saveLists();
+    
+    // Update UI
+    if (currentList === fromList || currentList === toList) {
+        renderListItems(currentList);
+    }
+    renderLists();
+    
+    // Close dialog
+    const dialog = document.querySelector('.move-options-dialog');
+    if (dialog) {
+        dialog.close();
+        dialog.remove();
     }
 }
 
@@ -569,5 +883,7 @@ function saveItemEdit() {
     closeEditItemDialog();
 }
 
-// Initialize the app
-init(); 
+// Initialize the app immediately
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+}); 
