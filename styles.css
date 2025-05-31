@@ -17,6 +17,9 @@
     border-radius: 8px;
     transition: all 0.2s ease;
     margin-bottom: 8px;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .list-item:hover {
@@ -26,6 +29,8 @@
 .list-item.completed .item-text {
     text-decoration: line-through;
     color: #666;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 .list-item-content {
@@ -99,15 +104,15 @@
 @keyframes pulse {
     0% {
         transform: scale(1);
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+        opacity: 1;
     }
     50% {
-        transform: scale(1.1);
-        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.25), 0 5px 10px rgba(0, 0, 0, 0.22);
+        transform: scale(1.2);
+        opacity: 0.8;
     }
     100% {
         transform: scale(1);
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+        opacity: 1;
     }
 }
 
@@ -155,6 +160,9 @@ button {
     transition: all 0.3s ease;
     z-index: 1000;
     text-decoration: none;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .floating-button:hover {
@@ -199,6 +207,8 @@ button {
         width: 36px;
         height: 36px;
         bottom: 16px;
+        transform: none;
+        will-change: auto;
     }
 
     .floating-button i {
@@ -216,6 +226,9 @@ button {
 
 .mdl-dialog {
     width: 400px;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .mdl-dialog__title {
@@ -247,6 +260,8 @@ button {
 .list-item-actions {
     display: flex;
     gap: 8px;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 .list-item-actions button {
@@ -379,6 +394,8 @@ button {
     .list-card {
         padding: 12px;
         margin: 0 8px;
+        transform: none;
+        will-change: auto;
     }
 
     .list-card-title {
@@ -419,6 +436,8 @@ button {
 
     .list-item {
         padding: 10px 12px;
+        transform: none;
+        will-change: auto;
     }
 
     .list-item-content {
@@ -489,6 +508,9 @@ button {
     cursor: pointer;
     transition: all 0.3s ease;
     position: relative;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .list-card:hover {
@@ -502,6 +524,7 @@ button {
     color: #333;
     margin: 0;
     padding-right: 32px;
+    text-rendering: optimizeLegibility;
 }
 
 .list-card-count {
@@ -541,6 +564,8 @@ button {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 .list-item:hover {
@@ -730,6 +755,8 @@ body {
     padding: 20px;
     width: 100%;
     box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 .list-card {
@@ -744,6 +771,9 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .list-card:hover {
@@ -759,6 +789,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    text-rendering: optimizeLegibility;
 }
 
 .list-card-count {
@@ -815,6 +846,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 .list-item {
@@ -840,6 +873,9 @@ dialog {
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     max-width: 400px;
     width: 90%;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 dialog h3 {
@@ -934,6 +970,9 @@ dialog input {
     z-index: 1000;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     font-family: Arial, sans-serif;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .listening-indicator {
@@ -951,7 +990,9 @@ dialog input {
     height: 12px;
     background: #4CAF50;
     border-radius: 50%;
-    animation: pulse 1.5s infinite;
+    animation: pulse 1.5s ease-in-out infinite;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 .transcript-container {
@@ -984,7 +1025,7 @@ dialog input {
     }
     50% {
         transform: scale(1.2);
-        opacity: 0.5;
+        opacity: 0.8;
     }
     100% {
         transform: scale(1);
@@ -1208,4 +1249,75 @@ dialog input {
 
 .confirm-dialog .delete-button:hover {
     background: #d32f2f;
+}
+
+/* Optimize animations for low-power mode */
+@media (prefers-reduced-motion: reduce) {
+    .list-item,
+    .floating-button,
+    .dialog,
+    .list-card,
+    .transcription-display,
+    .pulse-dot {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* Optimize rendering */
+* {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimize transitions */
+.list-item,
+.floating-button,
+.dialog,
+.list-card,
+.transcription-display {
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+/* Optimize shadows */
+.list-card,
+.dialog,
+.transcription-display {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    -webkit-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Optimize text rendering */
+.list-card-title,
+.item-text,
+.dialog h3,
+.dialog p {
+    text-rendering: optimizeLegibility;
+}
+
+/* Optimize layout */
+.lists-grid,
+.list-items {
+    contain: content;
+}
+
+/* Optimize paint operations */
+.list-item,
+.floating-button,
+.dialog,
+.list-card,
+.transcription-display {
+    contain: layout style paint;
+}
+
+/* Optimize memory usage */
+.list-item-actions,
+.dialog-buttons {
+    contain: layout style;
+}
+
+/* Optimize repaints */
+.list-item.completed .item-text {
+    transform: translateZ(0);
+    will-change: transform;
 } 

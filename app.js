@@ -119,20 +119,19 @@ function cleanupLists() {
 
 // Event Listeners
 function setupEventListeners() {
-    // Voice button - single click to start/stop
-    voiceButton.addEventListener('click', () => {
-        if (!isListening) {
-            startRecognition();
-        } else {
-            stopRecognition();
-        }
-    });
+    // Use passive event listeners for better scroll performance
+    document.addEventListener('touchstart', () => {}, { passive: true });
+    document.addEventListener('touchmove', () => {}, { passive: true });
+    
+    // Voice button - handle both click and touch events
+    voiceButton.addEventListener('click', handleVoiceButton, { passive: false });
+    voiceButton.addEventListener('touchend', handleVoiceButton, { passive: false });
     
     // Add list button
     addListButton.addEventListener('click', () => {
         newListInput.value = '';
         newListDialog.showModal();
-    });
+    }, { passive: true });
     
     // Add item button
     addItemButton.addEventListener('click', () => {
@@ -140,7 +139,7 @@ function setupEventListeners() {
             newItemInput.value = '';
             newItemDialog.showModal();
         }
-    });
+    }, { passive: true });
     
     // Dialog submit handlers
     document.getElementById('new-list-submit').addEventListener('click', () => {
@@ -149,7 +148,7 @@ function setupEventListeners() {
             createList(listName);
             newListDialog.close();
         }
-    });
+    }, { passive: true });
     
     document.getElementById('new-item-submit').addEventListener('click', () => {
         const itemText = newItemInput.value.trim();
@@ -157,11 +156,70 @@ function setupEventListeners() {
             addItem(currentList, itemText);
             newItemDialog.close();
         }
-    });
+    }, { passive: true });
     
     // Dialog cancel handlers
-    document.getElementById('new-list-cancel').addEventListener('click', () => newListDialog.close());
-    document.getElementById('add-item-cancel').addEventListener('click', () => newItemDialog.close());
+    document.getElementById('new-list-cancel').addEventListener('click', () => newListDialog.close(), { passive: true });
+    document.getElementById('add-item-cancel').addEventListener('click', () => newItemDialog.close(), { passive: true });
+}
+
+// Function to handle voice button interaction
+function handleVoiceButton(event) {
+    // Prevent default behavior and stop propagation
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Toggle recognition state
+    if (!isListening) {
+        startRecognition();
+    } else {
+        // If we're stopping manually, process the current transcript
+        if (currentTranscript.trim()) {
+            processVoiceCommand(currentTranscript);
+        }
+        stopRecognition();
+    }
+}
+
+function startRecognition() {
+    if (!recognition) {
+        initSpeechRecognition();
+    }
+    
+    if (!isListening) {
+        try {
+            // Reset transcript when starting new recognition
+            currentTranscript = '';
+            
+            // Request microphone permission explicitly
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(() => {
+                    recognition.start();
+                })
+                .catch((err) => {
+                    console.error('Microphone permission denied:', err);
+                    alert('Please allow microphone access to use voice commands.');
+                });
+        } catch (error) {
+            console.error('Error starting recognition:', error);
+            alert('Error starting voice recognition. Please try again.');
+        }
+    }
+}
+
+function stopRecognition() {
+    if (isListening && recognition) {
+        console.log('Stopping recognition');
+        if (silenceTimer) {
+            clearTimeout(silenceTimer);
+        }
+        recognition.stop();
+        isListening = false;
+        voiceButton.classList.remove('listening');
+        
+        // Clear the current transcript after processing
+        currentTranscript = '';
+    }
 }
 
 // List Management
@@ -290,15 +348,15 @@ function renderLists() {
         return;
     }
     
-    // Clear existing content
-    listsGrid.innerHTML = '';
+    // Use DocumentFragment for better performance
+    const fragment = document.createDocumentFragment();
     
     // First render default lists
     defaultLists.forEach(name => {
         console.log('Rendering default list:', name);
         const items = lists[name] || [];
         const card = createListCard(name, items);
-        listsGrid.appendChild(card);
+        fragment.appendChild(card);
     });
     
     // Then render custom lists
@@ -306,9 +364,13 @@ function renderLists() {
         if (!defaultLists.includes(name)) {
             console.log('Rendering custom list:', name);
             const card = createListCard(name, items);
-            listsGrid.appendChild(card);
+            fragment.appendChild(card);
         }
     });
+    
+    // Clear and update in one operation
+    listsGrid.innerHTML = '';
+    listsGrid.appendChild(fragment);
 }
 
 // Helper function to create list card
@@ -346,7 +408,8 @@ function showList(name) {
 function renderListItems(listName) {
     if (!listItemsContainer) return;
     
-    listItemsContainer.innerHTML = '';
+    // Use DocumentFragment for better performance
+    const fragment = document.createDocumentFragment();
     const items = lists[listName] || [];
     
     items.forEach(item => {
@@ -375,8 +438,12 @@ function renderListItems(listName) {
                 </button>
             </div>
         `;
-        listItemsContainer.appendChild(itemElement);
+        fragment.appendChild(itemElement);
     });
+    
+    // Clear and update in one operation
+    listItemsContainer.innerHTML = '';
+    listItemsContainer.appendChild(fragment);
 }
 
 // Voice Recognition
@@ -393,6 +460,8 @@ function initSpeechRecognition() {
         recognition.lang = 'en-US';
         recognition.maxAlternatives = 1;
 
+        // Use requestAnimationFrame for smoother animations
+        let animationFrame;
         recognition.onstart = () => {
             isListening = true;
             voiceButton.classList.add('listening');
@@ -407,11 +476,22 @@ function initSpeechRecognition() {
                     <div class="final-transcript"></div>
                 </div>
             `;
+            
+            // Optimize animation
+            function animate() {
+                if (isListening) {
+                    voiceButton.classList.add('listening');
+                    animationFrame = requestAnimationFrame(animate);
+                }
+            }
+            animate();
+            
             console.log('Voice recognition started');
         };
 
         recognition.onend = () => {
             isListening = false;
+            cancelAnimationFrame(animationFrame);
             voiceButton.classList.remove('listening');
             // Keep the display visible for a moment after stopping
             setTimeout(() => {
@@ -473,56 +553,20 @@ function initSpeechRecognition() {
                 clearTimeout(silenceTimer);
             }
 
-            // Set new silence timer
-            silenceTimer = setTimeout(() => {
-                if (currentTranscript.trim()) {
-                    processVoiceCommand(currentTranscript);
-                    stopRecognition();
-                }
-            }, 3000); // 3 seconds of silence
+            // Set new silence timer only if we're not manually stopping
+            if (isListening) {
+                silenceTimer = setTimeout(() => {
+                    if (currentTranscript.trim()) {
+                        processVoiceCommand(currentTranscript);
+                        stopRecognition();
+                    }
+                }, 3000); // 3 seconds of silence
+            }
         };
     } else {
         console.error('Speech recognition not supported');
         voiceButton.style.display = 'none';
         alert('Voice recognition is not supported in your browser. Please use a modern browser like Chrome or Safari.');
-    }
-}
-
-function startRecognition() {
-    if (!recognition) {
-        initSpeechRecognition();
-    }
-    
-    if (!isListening) {
-        try {
-            // Reset transcript when starting new recognition
-            currentTranscript = '';
-            
-            // Request microphone permission explicitly
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(() => {
-                    recognition.start();
-                })
-                .catch((err) => {
-                    console.error('Microphone permission denied:', err);
-                    alert('Please allow microphone access to use voice commands.');
-                });
-        } catch (error) {
-            console.error('Error starting recognition:', error);
-            alert('Error starting voice recognition. Please try again.');
-        }
-    }
-}
-
-function stopRecognition() {
-    if (isListening && recognition) {
-        console.log('Stopping recognition');
-        if (silenceTimer) {
-            clearTimeout(silenceTimer);
-        }
-        recognition.stop();
-        isListening = false;
-        voiceButton.classList.remove('listening');
     }
 }
 
@@ -595,9 +639,12 @@ async function categorizeText(text) {
     }
 }
 
-// Update the processVoiceCommand function to use the improved categorization
+// Update the processVoiceCommand function to be more responsive
 async function processVoiceCommand(transcript) {
     console.log('Processing command:', transcript);
+    
+    // Start AI categorization immediately
+    const categorizationPromise = categorizeText(transcript);
     
     // First try to find explicit list mentions
     let listName = null;
@@ -609,7 +656,7 @@ async function processVoiceCommand(transcript) {
 
     // If no explicit list mention, use AI to categorize
     if (!listName) {
-        const categorization = await categorizeText(transcript);
+        const categorization = await categorizationPromise;
         console.log('AI categorization:', categorization);
         
         if (categorization && categorization.bestList) {
@@ -634,8 +681,10 @@ async function processVoiceCommand(transcript) {
             showList(listName);
         }
 
-        // Show move options dialog
-        showMoveOptionsDialog(tempItem, listName);
+        // Show move options dialog immediately
+        requestAnimationFrame(() => {
+            showMoveOptionsDialog(tempItem, listName);
+        });
     } else {
         // If no list was found, create a new list
         const newListName = 'New List ' + (Object.keys(lists).length + 1);
@@ -643,19 +692,23 @@ async function processVoiceCommand(transcript) {
         addItem(newListName, tempItem.text);
         showList(newListName);
         
-        // Show move options dialog
-        showMoveOptionsDialog(tempItem, newListName);
+        // Show move options dialog immediately
+        requestAnimationFrame(() => {
+            showMoveOptionsDialog(tempItem, newListName);
+        });
     }
 }
 
-// Function to show move options dialog
+// Optimize the showMoveOptionsDialog function
 function showMoveOptionsDialog(item, currentListName) {
+    // Create dialog with minimal content first
     const dialog = document.createElement('dialog');
     dialog.className = 'move-options-dialog';
     
     // Get all lists including the current one
     const allLists = [...defaultLists, ...Object.keys(lists).filter(name => !defaultLists.includes(name))];
     
+    // Create basic structure
     const content = document.createElement('div');
     content.innerHTML = `
         <h3>Move Item</h3>
@@ -677,6 +730,8 @@ function showMoveOptionsDialog(item, currentListName) {
     
     dialog.appendChild(content);
     document.body.appendChild(dialog);
+    
+    // Show dialog immediately
     dialog.showModal();
 
     // Set the current list as selected
@@ -782,8 +837,14 @@ function normalizeListName(name) {
 
 // Storage
 function saveLists() {
-    console.log('Saving lists:', lists);
-    localStorage.setItem('lists', JSON.stringify(lists));
+    // Debounce save operations
+    if (saveLists.timeout) {
+        clearTimeout(saveLists.timeout);
+    }
+    saveLists.timeout = setTimeout(() => {
+        console.log('Saving lists:', lists);
+        localStorage.setItem('lists', JSON.stringify(lists));
+    }, 100);
 }
 
 // Function to show edit list dialog
